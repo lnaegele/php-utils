@@ -1,0 +1,16 @@
+{
+    "name": "jolutions/php-utils",
+    "autoload": {
+        "psr-4": {
+            "Jolutions\\PhpUtils\\": "src/"
+        }
+    },
+    "require": {
+        "php-di/php-di": "^7.0",
+        "dragonmantank/cron-expression": "^3.3",
+        "monolog/monolog": "^3.4",
+        "slim/psr7": "^1.6",
+        "pswag/pswag": "^1.0",
+        "phpmailer/phpmailer": "^6.9"
+    }
+}
