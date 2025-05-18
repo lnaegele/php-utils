@@ -1,5 +1,7 @@
 {
     "name": "jolutions/php-utils",
+    "description": "PHP utils",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Jolutions\\PhpUtils\\": "src/"
