@@ -226,7 +226,7 @@ abstract class EntityRepository
             $statement->execute([
                 "id" => $id,
                 "deletionUser" => $userSession->getUserId(),
-                "deletionTime" => "'".$this->dateTimeToDb(new DateTime())."'"
+                "deletionTime" => $this->dateTimeToDb(new DateTime())
             ]);
         } else {
             $statement = $pdo->prepare("DELETE FROM `$this->tableName` WHERE id = :id");
