@@ -7,11 +7,11 @@ use DateTimeZone;
 use DI\Container;
 use Exception;
 use Jolutions\PhpUtils\Authentication\Domain\UserSession;
-use Jolutions\PhpUtils\DateTime\DateTimeService;
 use Jolutions\PhpUtils\Entity\Domain\Interfaces\CreationAuditedEntityInterface;
 use Jolutions\PhpUtils\Entity\Domain\Interfaces\EntityInterface;
 use Jolutions\PhpUtils\Entity\Domain\Interfaces\FullAuditedEntityInterface;
 use Jolutions\PhpUtils\Entity\Domain\Interfaces\ModificationAuditedEntityInterface;
+use Jolutions\PhpUtils\Entity\Domain\Models\PaginatedList;
 use PDO;
 
 /**
@@ -44,6 +44,18 @@ abstract class EntityRepository
      * @return T[]
      */
     public final function getAll(array $whereExpressions=[], array $whereParamValues=[], array $orderBy=[], bool $disableSoftDeletionFilter=false): array {
+        $paginatedResult = $this->getPaginated(-1, -1, $whereExpressions, $whereParamValues, $orderBy, $disableSoftDeletionFilter);
+        return $paginatedResult->items;
+    }
+
+    /**
+     * @param string[] $whereExpressions e.g. ["name LIKE %:nameVar%"]
+     * @param array<string, mixed> $whereParamValues e.g. ["nameVar" => "Peter"]
+     * @param string[] $orderBy
+     * @param bool $disableSoftDeletionFilter
+     * @return PaginatedList<T>
+     */
+    public final function getPaginated(int $page, int $pageSize, array $whereExpressions=[], array $whereParamValues=[], array $orderBy=[], bool $disableSoftDeletionFilter=false): PaginatedList {
         // soft deletion
         if ($this->isFullAudited && !$disableSoftDeletionFilter) {
             $whereExpressions[] = "isDeleted=0";
@@ -51,7 +63,10 @@ abstract class EntityRepository
 
         $where = count($whereExpressions)==0 ? "" : (" WHERE (" . implode(") AND (", $whereExpressions) . ")");
         $order = count($orderBy)==0 ? "" : (" ORDER BY " . implode(", ", $orderBy));
-        $statement = $this->container->get(PDO::class)->prepare("SELECT * FROM `$this->tableName`$where$order;");
+        $limit = $pageSize<=0 ? "" : " LIMIT " . (($page-1) * $pageSize) . ", " . $pageSize;        
+        
+        $pdo = $this->container->get(PDO::class);
+        $statement = $pdo->prepare("SELECT * FROM `$this->tableName`$where$order$limit;");
         $statement->execute($whereParamValues);
         
         $result = [];
@@ -60,7 +75,26 @@ abstract class EntityRepository
         }
 
         $statement->closeCursor();
-        return $result;
+
+        $totalNumber = count($result);
+        $_page = 1;
+        $_pageSize = $totalNumber;
+
+        if ($limit!="") {
+            $statement = $pdo->prepare("SELECT count(*) FROM `$this->tableName`$where$order;");
+            $statement->execute($whereParamValues);
+            $totalNumber = $statement->fetchColumn();
+            $statement->closeCursor();
+            $_page = $page;
+            $_pageSize = $pageSize;
+        }
+        
+        return new PaginatedList(
+            $totalNumber,
+            $_page,
+            $_pageSize,
+            $result,
+        );
     }
 
     /**
