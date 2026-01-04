@@ -6,7 +6,7 @@ interface TokenRepositoryInterface
 {
     public function createToken(int $userId): string;
 
-    public function validateTokenAndGetUserId(string $token): int|bool;
+    public function validateTokenAndGetUserId(string $token): int|false;
 
     public function renewToken(string $token): void;
 

@@ -3,8 +3,8 @@ declare(strict_types=1);
 namespace Jolutions\PhpUtils\Authentication\Application;
 
 use Jolutions\PhpUtils\Authentication\Domain\AuthMailServiceInterface;
+use Jolutions\PhpUtils\Authentication\Domain\UserInterface;
 use Jolutions\PhpUtils\Authentication\Domain\UserSession;
-use Jolutions\PhpUtils\Authentication\Domain\UserTrait;
 use Jolutions\PhpUtils\Authentication\Persistence\TokenRepositoryInterface;
 use Jolutions\PhpUtils\Authentication\Persistence\UserRepositoryInterface;
 use Jolutions\PhpUtils\Guid\GuidGenerator;
@@ -100,7 +100,7 @@ class AuthApplicationService
             if ($user->replacementEmail!=null) {
                 $replacementEmail = $user->replacementEmail;
                 $user->replacementEmail = null;
-                if (count($this->userRepository->getUserByEmailOrNull($replacementEmail))) throw new UserFriendlyException("Die Emailadresse ist bereits vergeben.", 400);
+                if ($this->userRepository->getUserByEmailOrNull($replacementEmail)!=null) throw new UserFriendlyException("Die Emailadresse ist bereits vergeben.", 400);
                 $user->email = $replacementEmail;
             }
         } finally {
@@ -131,7 +131,7 @@ class AuthApplicationService
         return $this->login($user->email, $password);
     }
 
-    private function getUserIfConfirmationTokenValid(string $confirmationToken): ?UserTrait {
+    private function getUserIfConfirmationTokenValid(string $confirmationToken): ?UserInterface {
         list($email, $token) = $this->parseToken($confirmationToken);        
         $user = $this->userRepository->getUserByEmailOrNull($email);
         return $user!=null
@@ -140,7 +140,7 @@ class AuthApplicationService
             ? $user : null;
     }
 
-    private function createEmailConfirmationTokenAndSendEmail(UserTrait $user): void {
+    private function createEmailConfirmationTokenAndSendEmail(UserInterface $user): void {
         $confirmationToken = $this->guidGenerator->create();
         $user->replacementEmail = null;
         $user->confirmationToken = $confirmationToken;
@@ -156,7 +156,7 @@ class AuthApplicationService
         }
     }
 
-    private function createPasswordResetTokenAndSendEmail(UserTrait $user): void {
+    private function createPasswordResetTokenAndSendEmail(UserInterface $user): void {
         $passwordResetToken = $this->guidGenerator->create();
         $user->confirmationToken = $passwordResetToken;
         $user->confirmationTokenValidUntil = (new \DateTime('now'))->modify('+1 day');

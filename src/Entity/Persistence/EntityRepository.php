@@ -52,13 +52,13 @@ abstract class EntityRepository
      * @param string[] $whereExpressions e.g. ["name LIKE %:nameVar%"]
      * @param array<string, mixed> $whereParamValues e.g. ["nameVar" => "Peter"]
      * @param bool $disableSoftDeletionFilter
-     * @return T[]
+     * @return ?T
      */
-    public final function getSingle(array $whereExpressions=[], array $whereParamValues=[], bool $disableSoftDeletionFilter=false): EntityInterface {
+    public final function getSingleOrNull(array $whereExpressions=[], array $whereParamValues=[], bool $disableSoftDeletionFilter=false): ?EntityInterface {
         $result = $this->getAll($whereExpressions, $whereParamValues, [], $disableSoftDeletionFilter);
         $cnt = count($result);
-        if ($cnt!=1) throw new Exception("Expected EntityRepository::getSingle() to return one item, found $cnt items instead.");
-        return $result[0];
+        if ($cnt>1) throw new Exception("Expected to get one item item or null, found $cnt items instead.");
+        return $cnt==0 ? null : $result[0];
     }
 
     /**

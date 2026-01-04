@@ -2,13 +2,25 @@
 declare(strict_types=1);
 namespace Jolutions\PhpUtils\Authentication\Persistence;
 
-use Jolutions\PhpUtils\Authentication\Domain\UserTrait;
+use Jolutions\PhpUtils\Authentication\Domain\UserInterface;
 
+/**
+ * @template T of UserInterface
+ */
 interface UserRepositoryInterface
 {
-    public function getUserByIdOrNull(int $id): ?UserTrait;
+    /**
+     * @return ?T
+     */
+    public function getUserByIdOrNull(int $id): ?UserInterface;
     
-    public function getUserByEmailOrNull(string $email): ?UserTrait;
+    /**
+     * @return ?T
+     */
+    public function getUserByEmailOrNull(string $email): ?UserInterface;
 
-    public function updateUser(UserTrait $user): void;
+    /**
+     * @param T $user
+     */
+    public function updateUser(UserInterface $user): void;
 }

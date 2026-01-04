@@ -29,7 +29,6 @@ class MigrationManager
         /** @var LoggerInterface $logger */
         $logger = $this->container->has(LoggerInterface::class) ? $this->container->get(LoggerInterface::class) : null;
         $pdo = $this->container->get(PDO::class);
-        $dtService = $this->container->get(DateTimeService::class);
 
         $this->createSystemTableIfNotExists($pdo);
         
@@ -43,7 +42,7 @@ class MigrationManager
                 
                 $migration->up($pdo);
                 if ($logger != null) $logger->info("Successfully run migration '$id'.");
-                $this->setMigrationPresent($id, $pdo, $dtService);
+                $this->setMigrationPresent($id, $pdo);
                 //$pdo->commit();
             } catch (Exception $e) {
                 if ($logger != null) $logger->error("Unexpected error while executing migration '$id'.", ["exception" => $e]);
@@ -73,11 +72,11 @@ class MigrationManager
         return $row !== false;
     }
 
-    private function setMigrationPresent(string $id, PDO $pdo, DateTimeService $dtService): void {        
+    private function setMigrationPresent(string $id, PDO $pdo): void {        
         $statement = $pdo->prepare("INSERT INTO sys_database_migrations (id, creationTime) VALUES (:id, :creationTime);");
         $statement->execute(array(
             "id" => $id,
-            "creationTime" => $dtService->toUtcIsoString(new DateTime())
+            "creationTime" => (new DateTime())->format('Y-m-d H:i:s')
         ));
         $statement->closeCursor();
     }
