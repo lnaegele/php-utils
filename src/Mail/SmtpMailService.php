@@ -2,7 +2,6 @@
 declare(strict_types=1);
 namespace Jolutions\PhpUtils\Mail;
 
-use Jolutions\PhpUtils\Authentication\Domain\MailServiceInterface;
 use PHPMailer\PHPMailer\PHPMailer;
 
 class SmtpMailService implements MailServiceInterface

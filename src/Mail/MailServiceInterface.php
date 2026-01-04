@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-namespace Jolutions\PhpUtils\Authentication\Domain;
+namespace Jolutions\PhpUtils\Mail;
 
 interface MailServiceInterface
 {

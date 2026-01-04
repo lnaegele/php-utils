@@ -51,6 +51,19 @@ abstract class EntityRepository
     /**
      * @param string[] $whereExpressions e.g. ["name LIKE %:nameVar%"]
      * @param array<string, mixed> $whereParamValues e.g. ["nameVar" => "Peter"]
+     * @param bool $disableSoftDeletionFilter
+     * @return T[]
+     */
+    public final function getSingle(array $whereExpressions=[], array $whereParamValues=[], bool $disableSoftDeletionFilter=false): EntityInterface {
+        $result = $this->getAll($whereExpressions, $whereParamValues, [], $disableSoftDeletionFilter);
+        $cnt = count($result);
+        if ($cnt!=1) throw new Exception("Expected EntityRepository::getSingle() to return one item, found $cnt items instead.");
+        return $result[0];
+    }
+
+    /**
+     * @param string[] $whereExpressions e.g. ["name LIKE %:nameVar%"]
+     * @param array<string, mixed> $whereParamValues e.g. ["nameVar" => "Peter"]
      * @param string[] $orderBy
      * @param bool $disableSoftDeletionFilter
      * @return PaginatedList<T>
@@ -81,7 +94,7 @@ abstract class EntityRepository
         $_pageSize = $totalNumber;
 
         if ($limit!="") {
-            $statement = $pdo->prepare("SELECT count(*) FROM `$this->tableName`$where$order;");
+            $statement = $pdo->prepare("SELECT count(id) FROM `$this->tableName`$where GROUP BY id;");
             $statement->execute($whereParamValues);
             $totalNumber = $statement->fetchColumn();
             $statement->closeCursor();

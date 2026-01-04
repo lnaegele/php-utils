@@ -4,17 +4,19 @@ namespace Jolutions\PhpUtils\Authentication\Domain;
 
 class UserSession
 {
-    private ?AuthToken $authToken = null;
+    private ?int $userId = null;
+    private ?string $authToken = null;
 
-    public function setAuthToken(?AuthToken $authToken): void {
+    public function setSession(?int $userId, ?string $authToken): void {
+        $this->userId = $userId;
         $this->authToken = $authToken;
     }
 
-    public function getAuthToken(): ?AuthToken {
-        return $this->authToken;
+    public function getUserId(): ?int {
+        return $this->userId;
     }
 
-    public function getUserId(): ?int {
-        return $this->authToken?->getUserId();
+    public function getAuthToken(): ?string {
+        return $this->authToken;
     }
 }

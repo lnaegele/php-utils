@@ -6,7 +6,6 @@ use Cron\CronExpression;
 use DateTime;
 use DI\Container;
 use Exception;
-use Jolutions\PhpUtils\DateTime\DateTimeService;
 use PDO;
 use Psr\Log\LoggerInterface;
 
@@ -17,7 +16,6 @@ class BackgroundJobManager
 
     public function __construct(
         private Container $container,
-        private DateTimeService $dtService,
     ) {}
 
     public function registerJob(string $cronExpression, string $backgroundJobClass): void {
@@ -86,8 +84,8 @@ class BackgroundJobManager
         $statement = $pdo->prepare("UPDATE sys_backgroundjob_runs SET isRunning=1, lastExecutionTime=:lastExecutionTime, lastExecutionDuration=NULL, lastExecutionFailure=NULL WHERE id = :id AND isRunning=0 AND lastExecutionTime < :previousRunTime;");
         $statement->execute(array(
             "id" => $id,
-            "lastExecutionTime" => $this->dtService->toUtcIsoString(new DateTime()),
-            "previousRunTime" => $this->dtService->toUtcIsoString($previousRunDate)
+            "lastExecutionTime" => (new DateTime())->format('Y-m-d H:i:s'),
+            "previousRunTime" => $previousRunDate->format('Y-m-d H:i:s')
         ));
         $isRowInserted = $statement->rowCount()>0;
         $statement->closeCursor();

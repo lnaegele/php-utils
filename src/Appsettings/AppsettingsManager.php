@@ -12,12 +12,26 @@ class AppsettingsManager
         private string $directory,
     ) {}
 	
-	public function get($name) {
+	public function has($name): bool {
+		$this->checkLoaded();
+        return array_key_exists($name, self::$appsettings);
+	}
+	
+	public function get($name): mixed {
 		$this->checkLoaded();
         if (!array_key_exists($name, self::$appsettings)) {
 			throw new Exception("Appsettings file does not contain key '".$name."'.");
 		}
 		return self::$appsettings[$name];
+	}
+
+	/**
+	 * @template T of object
+	 * @param class-string<T> $className
+	 */
+	public function hasConfiguration($className): bool {
+        $clazz = new \ReflectionClass($className);
+		return $this->has($clazz->getShortName());
 	}
 
 	/**
