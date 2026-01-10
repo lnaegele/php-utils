@@ -265,22 +265,37 @@ abstract class EntityRepository
     }
 
     public final function delete(int $id): bool {
+        $numRows = $this->deleteAll(['id=:id'], ['id' => $id]);
+        return $numRows>0;
+    }
+
+    /**
+     * @param string[] $whereExpressions e.g. ["name LIKE %:nameVar%"]
+     * @param array<string, mixed> $whereParamValues e.g. ["nameVar" => "Peter"]
+     * @return int
+     */
+    public final function deleteAll(array $whereExpressions=[], array $whereParamValues=[]): int {
+        // soft deletion
+        if ($this->isFullAudited) {
+            $userSession = $this->container->get(UserSession::class);
+            $whereExpressions[] = "isDeleted=0";
+            $whereParamValues["deletionUser"] = $userSession->getUserId();
+            $whereParamValues["deletionTime"] = $this->dateTimeToDb(new DateTime());
+        }
+
+        $where = count($whereExpressions)==0 ? "" : (" WHERE (" . implode(") AND (", $whereExpressions) . ")");
+        
         $pdo = $this->container->get(PDO::class);
         $statement = null;
         if ($this->isFullAudited) {
-            $userSession = $this->container->get(UserSession::class);
-            $statement = $pdo->prepare("UPDATE `$this->tableName` SET isDeleted = 1, deletionUser = :deletionUser, deletionTime = :deletionTime WHERE id = :id AND isDeleted=0;");
-            $statement->execute([
-                "id" => $id,
-                "deletionUser" => $userSession->getUserId(),
-                "deletionTime" => $this->dateTimeToDb(new DateTime())
-            ]);
+            $statement = $pdo->prepare("UPDATE `$this->tableName` SET isDeleted = 1, deletionUser = :deletionUser, deletionTime = :deletionTime$where;");
+            $statement->execute($whereParamValues);
         } else {
-            $statement = $pdo->prepare("DELETE FROM `$this->tableName` WHERE id = :id");
-            $statement->execute(["id" => $id]);
+            $statement = $pdo->prepare("DELETE FROM `$this->tableName`$where");
+            $statement->execute($whereParamValues);
         }
 
-        $result = $statement->rowCount()>0;
+        $result = $statement->rowCount();
         $statement->closeCursor();
         return $result;
     }

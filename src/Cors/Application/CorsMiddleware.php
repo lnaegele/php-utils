@@ -9,7 +9,9 @@ use Psr\Http\Server\RequestHandlerInterface;
 class CorsMiddleware
 {
     public function __construct(
-        private string $url,
+        private string $allowOrigin,
+        private string $allowHeaders,
+        private bool $allowCredentials = false,
     ) {}
 
     /**
@@ -24,7 +26,7 @@ class CorsMiddleware
     {
         $response = $handler->handle($request);
 
-        foreach (CorsMiddleware::getCorsHeadersFor($this->url) as $key => $value)
+        foreach ($this->getCorsHeaders() as $key => $value)
         {
             $response = $response->withHeader($key, $value);
         }
@@ -32,12 +34,13 @@ class CorsMiddleware
         return $response;
     }
 
-    public static function getCorsHeadersFor($url): array
+    public function getCorsHeaders(): array
     {
         return [
-            'Access-Control-Allow-Origin' => $url,
-            'Access-Control-Allow-Headers' => '*', //X-Requested-With, Content-Type, Accept, Origin, Authorization',
-            'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
+            'Access-Control-Allow-Origin' => $this->allowOrigin,
+            'Access-Control-Allow-Headers' => $this->allowHeaders, // wildcard does not work in combination with allow-credentials true
+            'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+            'Access-Control-Allow-Credentials' => $this->allowCredentials ? 'true' : 'false',
         ];
     }
 }
