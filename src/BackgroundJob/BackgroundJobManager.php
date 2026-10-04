@@ -11,6 +11,9 @@ use Psr\Log\LoggerInterface;
 
 class BackgroundJobManager
 {
+    /** A lock older than this is considered stale (e.g. process was killed or hit a fatal error) and may be taken over. */
+    private const STALE_LOCK_SECONDS = 3600;
+
     /** @var string[] $backgroundJobClasses */
     private static array $backgroundJobClasses = [];
 
@@ -42,7 +45,8 @@ class BackgroundJobManager
                 
                 if ($logger != null) $logger->info("Successfully run background job '$backgroundJobClass'.");
                 $this->freeBackgroundjobLock($backgroundJobClass, microtime(true) - $time_pre, false, $pdo);
-            } catch (Exception $e) {
+            } catch (\Throwable $e) {
+                // catching Throwable (not only Exception), as otherwise the lock would never be freed on errors like TypeError
                 if ($this->container->has(LoggerInterface::class)) $this->container->get(LoggerInterface::class)->error("Unexpected error while executing background job '$backgroundJobClass'.", ["exception" => $e]);
                 $this->freeBackgroundjobLock($backgroundJobClass, microtime(true) - $time_pre, true, $pdo);
             }
@@ -81,11 +85,12 @@ class BackgroundJobManager
         $statement->closeCursor();
 
         // Get lock
-        $statement = $pdo->prepare("UPDATE sys_backgroundjob_runs SET isRunning=1, lastExecutionTime=:lastExecutionTime, lastExecutionDuration=NULL, lastExecutionFailure=NULL WHERE id = :id AND isRunning=0 AND lastExecutionTime < :previousRunTime;");
+        $statement = $pdo->prepare("UPDATE sys_backgroundjob_runs SET isRunning=1, lastExecutionTime=:lastExecutionTime, lastExecutionDuration=NULL, lastExecutionFailure=NULL WHERE id = :id AND (isRunning=0 OR lastExecutionTime < :staleLockTime) AND lastExecutionTime < :previousRunTime;");
         $statement->execute(array(
             "id" => $id,
             "lastExecutionTime" => (new DateTime())->format('Y-m-d H:i:s'),
-            "previousRunTime" => $previousRunDate->format('Y-m-d H:i:s')
+            "previousRunTime" => $previousRunDate->format('Y-m-d H:i:s'),
+            "staleLockTime" => (new DateTime())->modify('-'.self::STALE_LOCK_SECONDS.' seconds')->format('Y-m-d H:i:s'),
         ));
         $isRowInserted = $statement->rowCount()>0;
         $statement->closeCursor();
