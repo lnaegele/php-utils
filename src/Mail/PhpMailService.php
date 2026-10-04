@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Jolutions\PhpUtils\Mail;
 
-class PhpMailService implements MailServiceInterface
+class PhpMailService implements MarkdownMailServiceInterface
 {
     public function __construct(
         private string $senderEmail,
@@ -18,5 +18,12 @@ class PhpMailService implements MailServiceInterface
         if (!mail($email, $subject, $message, $mailHeaders)) {
             throw new \Exception("Could not send email to $email.");
         }
+    }
+
+    public function sendMarkdownMail(string $email, string $subject, string $markdown, bool $isHtml = true): void
+    {
+        // mail() offers no multipart support, so HTML mails are sent without plain text alternative
+        $converter = new MarkdownConverter();
+        $this->sendMail($email, $subject, $isHtml ? $converter->toHtml($markdown) : $converter->toText($markdown), $isHtml);
     }
 }
