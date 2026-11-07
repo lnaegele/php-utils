@@ -4,6 +4,9 @@ namespace Jolutions\PhpUtils\Mail;
 
 use PHPMailer\PHPMailer\PHPMailer;
 
+/**
+ * Sends mails via SMTP. Encryption is chosen automatically, see SmtpMailerFactory::create().
+ */
 class SmtpMailService implements MarkdownMailServiceInterface
 {
     public function __construct(
@@ -13,62 +16,49 @@ class SmtpMailService implements MarkdownMailServiceInterface
         private int $smtpPort,
         private string $smtpUsername,
         private string $smtpPassword,
-        private bool $smtpTls = true,
     ) {}
 
     public function sendMail(string $email, string $subject, string $message, bool $isHtml = false): void
     {
-        $mail = $this->createMailer($email, $subject);
-
-        if ($isHtml) {
-            // This will call isHTML, set Body to the HTML you provide (after some processing to handle images), and strip tags and use it to set AltBody.
-            $mail->msgHtml($message);
-        } else {
-            $mail->Body = $message;
-        }
-
-        $this->send($mail, $email);
+        $this->send($email, $subject, function (PHPMailer $mail) use ($message, $isHtml) {
+            if ($isHtml) {
+                // This will call isHTML, set Body to the HTML you provide (after some processing to handle images), and strip tags and use it to set AltBody.
+                $mail->msgHtml($message);
+            } else {
+                $mail->Body = $message;
+            }
+        });
     }
 
     public function sendMarkdownMail(string $email, string $subject, string $markdown, bool $isHtml = true): void
     {
         $converter = new MarkdownConverter();
-        $mail = $this->createMailer($email, $subject);
-
-        if ($isHtml) {
-            $mail->isHTML(true);
-            $mail->Body = $converter->toHtml($markdown);
-            $mail->AltBody = $converter->toText($markdown);
-        } else {
-            $mail->Body = $converter->toText($markdown);
-        }
-
-        $this->send($mail, $email);
+        $this->send($email, $subject, function (PHPMailer $mail) use ($converter, $markdown, $isHtml) {
+            if ($isHtml) {
+                $mail->isHTML(true);
+                $mail->Body = $converter->toHtml($markdown);
+                $mail->AltBody = $converter->toText($markdown);
+            } else {
+                $mail->Body = $converter->toText($markdown);
+            }
+        });
     }
 
-    private function createMailer(string $email, string $subject): PHPMailer
+    /**
+     * @param callable(PHPMailer): void $setContent
+     */
+    private function send(string $email, string $subject, callable $setContent): void
     {
-        $mail = new PHPMailer();
-        $mail->isSMTP();
-        $mail->Host = $this->smtpHost;
-        $mail->SMTPAuth = true;
-        $mail->Username = $this->smtpUsername;
-        $mail->Password = $this->smtpPassword;
-        $mail->SMTPSecure = $this->smtpTls ? "tls" : "";
-        $mail->Port = $this->smtpPort;
-        $mail->From = $this->senderEmail;
-        $mail->FromName = $this->senderName;
-        $mail->addAddress($email, "");
-        $mail->CharSet = 'UTF-8';
-        $mail->Subject = $subject;
-        return $mail;
-    }
-
-    private function send(PHPMailer $mail, string $email): void
-    {
-        if(!$mail->send())
-        {
-            throw new \Exception("Could not send email to $email. Mailer Error: $mail->ErrorInfo");
+        try {
+            $mail = SmtpMailerFactory::create($this->smtpHost, $this->smtpPort, $this->smtpUsername, $this->smtpPassword);
+            $mail->CharSet = PHPMailer::CHARSET_UTF8;
+            $mail->setFrom($this->senderEmail, $this->senderName, false);
+            $mail->addAddress($email);
+            $mail->Subject = $subject;
+            $setContent($mail);
+            $mail->send();
+        } catch (\Throwable $e) {
+            throw new \Exception("Could not send email to $email. Mailer Error: " . $e->getMessage(), 0, $e);
         }
     }
 }
