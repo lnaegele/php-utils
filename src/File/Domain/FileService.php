@@ -61,20 +61,28 @@ class FileService
         return $this->delete($this->getFileReferenceForTempFile($fileToken));
     }
 
+    /**
+     * @return string absolute path of the file in the file storage directory
+     */
+    public function getFilePath(FileReference $fileReference): string {
+        // files stored before version 2.0 have an absolute uri
+        if (self::isAbsolutePath($fileReference->uri)) return $fileReference->uri;
+        return $this->getStorageDirectory().DIRECTORY_SEPARATOR.$fileReference->uri;
+    }
+
     private function store(string $fileName, string $fileContent, bool $isTemp): FileReference {
-        $path = $this->appsettingsManager->getAppSettingsDirectory().DIRECTORY_SEPARATOR.$this->appsettingsManager->get(self::APPSETTINGS_FILE_STORAGE_PATH);
+        $path = $this->getStorageDirectory();
         if (!is_dir($path)) {
             mkdir($path, 0777, true);
         }
 
         $fileToken = $this->guidGenerator->create();
-        $uri = $path.DIRECTORY_SEPARATOR.$fileToken;
+        $fileReference = new FileReference($fileName, $fileToken, $fileToken, $isTemp);
 
-        $fh = fopen($uri, 'a');
+        $fh = fopen($this->getFilePath($fileReference), 'a');
         fwrite($fh, $fileContent);
         fclose($fh);
 
-        $fileReference = new FileReference($fileName, $fileToken, $uri, $isTemp, );
         $this->fileReferenceRepository->insert($fileReference);
 
         return $fileReference;
@@ -82,14 +90,25 @@ class FileService
 
     private function load(?FileReference $fileReference): ?File {
         if ($fileReference==null) return null;
-        $fileContent = file_get_contents($fileReference->uri);
+        $fileContent = file_get_contents($this->getFilePath($fileReference));
         return new File($fileReference->name, $fileContent, $fileReference->getCreationUserId(), $fileReference->getCreationTime());
-    }    
-    
+    }
+
     private function delete(?FileReference $fileReference): bool {
         if ($fileReference==null) return false;
         $result = $this->fileReferenceRepository->delete($fileReference->getId());
-        unlink($fileReference->uri);
+        $filePath = $this->getFilePath($fileReference);
+        if (file_exists($filePath)) unlink($filePath);
         return $result;
+    }
+
+    private function getStorageDirectory(): string {
+        return rtrim($this->appsettingsManager->getAppSettingsDirectory(), '/\\')
+            .DIRECTORY_SEPARATOR
+            .rtrim($this->appsettingsManager->get(self::APPSETTINGS_FILE_STORAGE_PATH), '/\\');
+    }
+
+    private static function isAbsolutePath(string $path): bool {
+        return str_starts_with($path, '/') || str_starts_with($path, '\\') || preg_match('/^[A-Za-z]:[\/\\\\]/', $path) === 1;
     }
 }
